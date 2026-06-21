@@ -75,7 +75,7 @@ export default function LiveArenaClient({ user, roomId, roomName, isRoomAdmin, i
   useEffect(() => {
     if (isLocked) return;
 
-    const socketInstance = io("http://localhost:3001");
+    const socketInstance = io("https://auction-engine-backend.onrender.com");
     setSocket(socketInstance);
 
     socketInstance.on("connect", () => {
@@ -149,7 +149,7 @@ export default function LiveArenaClient({ user, roomId, roomName, isRoomAdmin, i
     e.preventDefault();
     setIsVerifying(true); setPasswordError("");
     try {
-      const res = await fetch(`http://localhost:3001/api/rooms/${roomId}/verify-password`, {
+      const res = await fetch(`https://auction-engine-backend.onrender.com/api/rooms/${roomId}/verify-password`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: roomPassword })
       });
       if (res.ok) setIsLocked(false);

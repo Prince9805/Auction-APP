@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
-          const res = await fetch("http://localhost:3001/api/auth/verify-password-login", {
+          const res = await fetch("https://auction-engine-backend.onrender.com/api/auth/verify-password-login", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: credentials.email, password: credentials.password })
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         try {
-          const res = await fetch("http://localhost:3001/api/auth/google-login", {
+          const res = await fetch("https://auction-engine-backend.onrender.com/api/auth/google-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: user.email, name: user.name, image: user.image })

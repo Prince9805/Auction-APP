@@ -13,7 +13,7 @@ export default function SearchClient() {
     setLoading(true);
     
     try {
-      const res = await fetch(`http://localhost:3001/api/rooms/search/${searchId}`);
+      const res = await fetch(`https://auction-engine-backend.onrender.com/api/rooms/search/${searchId}`);
       if (res.ok) {
         // Room exists! Teleport the user to the Arena.
         router.push(`/arena/${searchId}`);

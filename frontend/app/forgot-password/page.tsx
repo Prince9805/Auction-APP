@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true); setError("");
     try {
-      const res = await fetch("http://localhost:3001/api/auth/send-otp", {
+      const res = await fetch("https://auction-engine-backend.onrender.com/api/auth/send-otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, context: "reset" }),
       });
@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     
     setLoading(true); setError("");
     try {
-      const res = await fetch("http://localhost:3001/api/auth/reset-password", {
+      const res = await fetch("https://auction-engine-backend.onrender.com/api/auth/reset-password", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, newPassword }),
       });

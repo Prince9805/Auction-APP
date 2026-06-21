@@ -20,7 +20,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true); setError("");
     try {
-      const res = await fetch("http://localhost:3001/api/auth/send-otp", {
+      const res = await fetch("https://auction-engine-backend.onrender.com/api/auth/send-otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, context: "signup" }),
       });
@@ -38,7 +38,7 @@ export default function SignupPage() {
     
     setLoading(true); setError("");
     try {
-      const res = await fetch("http://localhost:3001/api/auth/register-full", {
+      const res = await fetch("https://auction-engine-backend.onrender.com/api/auth/register-full", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name, password, otp }),
       });

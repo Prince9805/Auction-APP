@@ -17,10 +17,10 @@ export default async function ArenaPage({ params }: { params: any }) {
   let participant = null;
 
   try {
-    const res = await fetch(`http://localhost:3001/api/rooms/${roomId}`, { cache: "no-store" });
+    const res = await fetch(`https://auction-engine-backend.onrender.com/api/rooms/${roomId}`, { cache: "no-store" });
     if (res.ok) room = await res.json();
 
-    const partRes = await fetch(`http://localhost:3001/api/rooms/${roomId}/participant/${session.user.id}`, { cache: "no-store" });
+    const partRes = await fetch(`https://auction-engine-backend.onrender.com/api/rooms/${roomId}/participant/${session.user.id}`, { cache: "no-store" });
     if (partRes.ok) participant = await partRes.json();
   } catch (err) {
     console.error("Fetch request failed entirely.");

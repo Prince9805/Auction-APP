@@ -17,13 +17,13 @@ export default async function DashboardPage() {
 
   let publicRooms: PublicRoom[] = [];
   try {
-    const res = await fetch("http://localhost:3001/api/rooms/public", { cache: "no-store" });
+    const res = await fetch("https://auction-engine-backend.onrender.com/api/rooms/public", { cache: "no-store" });
     if (res.ok) publicRooms = await res.json();
   } catch (err) {}
 
   let userHistory: any[] = [];
   try {
-    const historyRes = await fetch(`http://localhost:3001/api/users/${session.user.id}/history`, { cache: "no-store" });
+    const historyRes = await fetch(`https://auction-engine-backend.onrender.com/api/users/${session.user.id}/history`, { cache: "no-store" });
     if (historyRes.ok) userHistory = await historyRes.json();
   } catch (err) {}
 

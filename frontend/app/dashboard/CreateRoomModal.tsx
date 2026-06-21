@@ -18,7 +18,7 @@ export default function CreateRoomModal({ adminId }: { adminId: string }) {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:3001/api/rooms/create", {
+      const res = await fetch("https://auction-engine-backend.onrender.com/api/rooms/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
