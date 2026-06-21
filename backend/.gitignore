@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Environment Variables (Crucial: Never commit these!)
+.env
+
+# Build/Generated files
+dist/
+build/
+*.log
+
+# Editor & System Files
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  
+}
+
+// 1. THE USERS & AUTH
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  password      String?   
+  emailVerified DateTime? 
+  image         String?   
+  role          Role      @default(BIDDER) 
+  
+  // Custom OTP System
+  otpCode       String?   
+  otpExpiry     DateTime?
+
+  // Auth Relationships
+  accounts      Account[]
+  sessions      Session[]
+
+  // Auction Relationships
+  roomsOwned    Room[]            @relation("RoomAdmin")
+  bidsPlaced    Bid[]
+  roomAccess    RoomParticipant[]
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  BIDDER
+  AUDIENCE
+}
+
+// 2. THE AUCTION ROOMS
+model Room {
+  id          String     @id @default(uuid())
+  name        String
+  isPrivate   Boolean    @default(false)
+  password    String?
+  status      RoomStatus @default(WAITING)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  adminId     String
+  admin       User     @relation("RoomAdmin", fields: [adminId], references: [id])
+
+  // Items are linked, but we remove Cascade so history isn't accidentally wiped
+  items       Item[]
+  participants RoomParticipant[]
+}
+
+enum RoomStatus {
+  WAITING
+  LIVE
+  CLOSED
+}
+
+// 3. THE WAITING ROOM
+model RoomParticipant {
+  id        String       @id @default(uuid())
+  roomId    String
+  userId    String
+  status    AccessStatus @default(PENDING)
+  joinedAt  DateTime     @default(now())
+  
+  // 🔥 NEW: The user's financial limit for this specific room!
+  purse     Float        @default(0)
+
+  // Cascade IS appropriate here (if room is deleted, waiting room info is junk)
+  room      Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+enum AccessStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// 4. THE ITEM POOL
+model Item {
+  id            String     @id @default(uuid())
+  roomId        String
+  name          String
+  description   String?
+  imageUrl      String?
+  startingPrice Float
+  status        ItemStatus @default(QUEUED)
+  
+  // 🔥 NEW: History tracking for the Audit Trail!
+  winnerName    String?  
+  finalPrice    Float?   
+
+  // NO Cascade here. If room is deleted, we want items to remain for history.
+  room          Room       @relation(fields: [roomId], references: [id])
+  bids          Bid[]
+}
+
+enum ItemStatus {
+  QUEUED
+  ACTIVE
+  SOLD
+  UNSOLD
+}
+
+// 5. THE BIDS
+model Bid {
+  id        String   @id @default(uuid())
+  amount    Float
+  time      DateTime @default(now())
+
+  itemId    String
+  // NO Cascade here. If item is deleted (shouldn't happen), bids should stay.
+  item      Item     @relation(fields: [itemId], references: [id])
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}

@@ -1,0 +1,6 @@
+# Global Safety Net
+.env
+.env.*
+node_modules/
+.DS_Store
+.vscode/
