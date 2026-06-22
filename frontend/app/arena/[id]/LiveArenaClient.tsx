@@ -385,7 +385,7 @@ export default function LiveArenaClient({ user, roomId, roomName, isRoomAdmin, i
                   </div>
                   <button
                     onClick={placeBid}
-                    disabled={timeLeft === "SOLD!" || typeof timeLeft === "string" || !activeItemId || !isAuctionRunning || bidAmount > userPurse || !bidAmount || freezeData !== null}
+                    disabled={timeLeft === "SOLD!" || typeof timeLeft === "string" || !activeItemId || !isAuctionRunning || Number(bidAmount) > userPurse || !bidAmount || freezeData !== null}
                     className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-600 disabled:border-transparent border-b-4 border-emerald-700 text-slate-950 px-10 py-5 rounded-2xl font-black text-2xl transition-all active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(52,211,153,0.2)] disabled:shadow-none"
                   > BID </button>
                 </div>
