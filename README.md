@@ -1,31 +1,74 @@
 # Auction APP
 
-A full-stack live auction platform with real-time bidding and **concurrency-safe bid resolution** — built to handle the hard part most tutorial auction apps skip: multiple users bidding on the same lot at the same instant without race conditions, lost bids, or double-wins.
+A full-stack, real-time live auction platform with **server-authoritative fair-bidding logic**, role-based room access, and reconnection-safe state — built to solve the actual hard problems in live bidding (race conditions, fairness, and disconnect handling), not just a CRUD app with a countdown timer.
 
-> Live demo: `https://auction-app-eight-ruddy.vercel.app'
+> Live demo: https://auction-app-eight-ruddy.vercel.app
 
 ---
 
 ## Why this project exists
 
-Most "auction app" tutorials stop at a form that writes a bid to a database. The interesting (and hard) problem is what happens when two users submit a bid on the same item in the same millisecond. This project's core engineering goal is correctness under concurrent writes — not just a CRUD app with a countdown timer.
+Most auction app clones stop at "user submits a bid, highest number wins." The interesting problems are:
 
-Key things this app actually solves:
-- **Atomic bid resolution** — concurrent bids on the same lot are resolved with DB-level atomicity (transactions / row locking), so the highest valid bid always wins and no bid is silently dropped.
-- **State persistence** — if an admin or auctioneer disconnects mid-auction, the room's state survives and reconnects cleanly.
-- **Room isolation** — each auction room's state and bid stream is isolated from others, so concurrent auctions don't interfere with each other.
+- What happens when two users bid in the same instant?
+- How do you guarantee fairness when bids race against each other over a network with variable latency?
+- What happens when the admin or a bidder loses connection mid-auction?
+
+This project answers all three with a **server-authoritative locking mechanism**, **role-based permission system**, and **reconnection-safe room state**.
 
 ---
 
 ## Tech Stack
 
-| Layer        | Technology |
-|---------------|------------|
-| Frontend      | Next.js (React, TypeScript) |
-| Backend       | Node.js + TypeScript |
-| Database      | PostgreSQL |
-| Auth          | NextAuth.js |
-| Deployment    | Vercel (frontend), Render (backend) |
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js (React, TypeScript) |
+| Backend | Node.js + Express |
+| Database | PostgreSQL (hosted on [Neon](https://neon.tech)) |
+| ORM | Prisma |
+| Auth | Email/password + OTP email verification, Google OAuth, HTTP-only secure session cookies |
+| Real-time | WebSockets (Socket.io) |
+
+---
+
+## Core Features
+
+### Authentication
+- Sign up / log in with email + password, or Google OAuth
+- OTP email verification on sign-up
+- Forgot password / reset password flow
+- Session persistence via HTTP-only secure cookies — valid for 30 days, after which re-authentication is required
+
+### Roles
+Every room has three participant types:
+
+| Role | Permissions |
+|---|---|
+| **Admin** | Creates the room, sets each bidder's starting purse, approves/denies bidder requests, starts/stops the bidding clock, pushes items one by one, ends the room |
+| **Bidder** | Must request admin approval to join as a bidder; can place bids only while the clock is active |
+| **Audience** | Can join a public room directly; for a private room, just needs the room password (no admin approval required) |
+
+### Rooms
+- **Public rooms**: anyone currently on the site can join as audience instantly; joining as a bidder still requires admin approval
+- **Private rooms**: admin shares a **Room ID**; joining (as either bidder or audience) requires the room password set at creation
+- Every room is **isolated** — state, bids, and connected clients of one room never affect another
+- Admin sets each bidder's **starting purse** before the auction begins
+
+### Bidding Logic (fairness mechanism)
+1. Admin pushes the current item up for auction
+2. Admin starts the clock for that item
+3. The **first bid received by the server** for that cycle is the winning bid for that round
+4. The winning bidder's name is broadcast and displayed on every connected screen for **2 seconds**
+5. All clients are **frozen** (bidding disabled) for those 2 seconds — this is enforced server-side, not just visually on the client, so no bid placed during the freeze window is accepted
+6. After the freeze, bidding reopens for the next round on the same item until the admin moves to the next item
+7. Admin manually pushes items one at a time and controls when the room ends
+
+> Fairness is guaranteed by determining "first bid" based on **server receipt order**, not client-reported timestamps — client clocks/latency are never trusted for resolving who bid first.
+
+### Resilience
+- **Auto-end on admin disconnect**: if the admin is disconnected from the room for more than 15 minutes, the room ends automatically
+- **Reconnection-safe state**: if any participant (admin, bidder, or audience) loses connection and rejoins, they're synced to the room's **current live state** — not dropped back to the start
+- **History**: every logged-in user can view their auction history — rooms they attended and items they won
 
 ---
 
@@ -33,39 +76,31 @@ Key things this app actually solves:
 
 ```
 Auction-APP/
-├── frontend/          # Next.js app (UI, pages/routes, NextAuth config)
+├── frontend/          # Next.js app — UI, auth pages, room UI, dashboard
 │   ├── src/
-│   ├── package.json
-│   └── ...
-├── backend/           # Node.js + TypeScript API server
+│   ├── prisma/        # if schema is shared/used here
+│   └── package.json
+├── backend/           # Express API + WebSocket server
 │   ├── src/
-│   ├── package.json
-│   └── ...
+│   │   ├── routes/
+│   │   ├── controllers/
+│   │   ├── sockets/    # bidding/freeze/lock logic lives here
+│   │   └── prisma/     # Prisma schema + client
+│   └── package.json
 └── README.md
 ```
 
-> Note: frontend and backend are separate apps with their own `package.json` and dependencies — run and deploy them independently.
+> Update this once you confirm your actual folder layout — particularly where your Prisma schema lives and where the bid-lock/freeze logic is implemented.
 
 ---
 
-## Features
-
-- User authentication (NextAuth.js)
-- Create and join live auction rooms
-- Real-time bid placement and updates
-- Concurrency-safe bid resolution (atomic DB transactions)
-- Admin/auctioneer controls per room
-- Reconnect-safe auction state
-
----
-
-## Getting Started (Run it locally)
+## Getting Started (Local Setup)
 
 ### Prerequisites
-
 - Node.js v18+
-- npm or yarn
-- PostgreSQL (local instance or a hosted one, e.g. Supabase / Neon / Railway)
+- A PostgreSQL database (Neon recommended, or any Postgres instance)
+- Google OAuth credentials (Client ID/Secret) if testing Google sign-in
+- SMTP credentials or an email service (for OTP + password reset emails)
 
 ### 1. Clone the repo
 
@@ -74,7 +109,7 @@ git clone https://github.com/Prince9805/Auction-APP.git
 cd Auction-APP
 ```
 
-### 2. Set up the backend
+### 2. Backend setup
 
 ```bash
 cd backend
@@ -84,24 +119,31 @@ npm install
 Create a `.env` file in `backend/`:
 
 ```env
-DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<db_name>
+DATABASE_URL=postgresql://<user>:<password>@<neon-host>/<db>?sslmode=require
 PORT=4000
 JWT_SECRET=<your_secret>
+COOKIE_SECRET=<your_secret>
+GOOGLE_CLIENT_ID=<your_google_client_id>
+GOOGLE_CLIENT_SECRET=<your_google_client_secret>
+SMTP_HOST=<your_smtp_host>
+SMTP_USER=<your_smtp_user>
+SMTP_PASS=<your_smtp_pass>
 ```
 
-Run database migrations (if applicable):
+Generate the Prisma client and run migrations:
 
 ```bash
-npm run migrate
+npx prisma generate
+npx prisma migrate dev
 ```
 
-Start the backend dev server:
+Start the backend:
 
 ```bash
 npm run dev
 ```
 
-### 3. Set up the frontend
+### 3. Frontend setup
 
 ```bash
 cd ../frontend
@@ -112,12 +154,10 @@ Create a `.env.local` file in `frontend/`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=<your_secret>
-DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<db_name>
+NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 ```
 
-Start the frontend dev server:
+Start the frontend:
 
 ```bash
 npm run dev
@@ -125,58 +165,69 @@ npm run dev
 
 ### 4. Open the app
 
-Visit `http://localhost:3000` in your browser. The backend API runs on `http://localhost:4000`.
+Visit `http://localhost:3000`.
 
-> ⚠️ Update the exact env var names and ports above to match what's actually in your `backend/.env.example` and `frontend/.env.example` — fill those in once you confirm them.
-
----
-
-## How to Use the App (End User)
-
-1. **Sign up / log in** via the auth page (NextAuth).
-2. **Create an auction room** — set the item, starting price, and end time.
-3. **Share the room link** with bidders.
-4. **Bidders join the room** and place bids in real time; the current highest bid updates live for everyone in the room.
-5. **Auction closes** at the set end time (or manually by the admin) — the highest valid bid wins, resolved atomically.
+> ⚠️ Double-check the exact env var names against your actual `.env.example` files and fix any mismatches above.
 
 ---
 
-## For Developers — How to Work With This Codebase
+## How to Use the App
 
-### Architecture overview
+1. **Sign up** with email (verify via OTP) or **log in** with Google/email+password.
+2. From the dashboard, either **create a room** (public or private, set bidder starting purse) or **join a room** by Room ID.
+3. If joining a private room: enter the room password, then choose to join as **bidder** (requires admin approval) or **audience** (joins immediately).
+4. If joining a public room: audience joins instantly; bidders still need admin approval.
+5. **Admin** pushes an item, starts the clock — bidders race to bid first each round; winner is shown for 2 seconds while the room freezes.
+6. Admin pushes the next item when ready, and ends the room when the auction is complete.
+7. Stay logged in for up to 30 days via secure session cookie, or check your **history** anytime to see past rooms attended and items won.
 
-- **Frontend (`/frontend`)**: Next.js app responsible for UI, auth (NextAuth), and consuming the backend API. Pages/routes live under `frontend/src` (or `app/` if using the App Router).
-- **Backend (`/backend`)**: Node.js + TypeScript API server. Owns all auction/bid business logic and talks directly to PostgreSQL. This is where the concurrency-safe bid resolution logic lives — look here first if you're extending bidding behavior.
-- **Database**: PostgreSQL. Auction rooms, bids, and users are the core tables. Bid writes use transactions (and/or row-level locking) to guarantee atomic resolution under concurrent submissions.
+---
 
-### Key areas to look at if you want to extend this
+## For Developers — Working With This Codebase
+
+### Where the hard logic lives
 
 | If you want to... | Look at... |
 |---|---|
-| Change bid resolution logic | `backend/src/` — bid service / controller handling bid submission |
-| Add a new auction room feature | `backend/src/` (API + DB) and `frontend/src/` (room UI) |
-| Modify auth behavior | `frontend/` NextAuth config |
-| Change DB schema | migration files in `backend/` |
+| Modify the bid-locking/freeze logic | `backend/src/sockets/` — the WebSocket handler resolving "first bid" per round |
+| Change room access rules (public/private, approval flow) | `backend/src/controllers/` (room/permission logic) |
+| Adjust the admin-disconnect auto-end timer | wherever the 15-min heartbeat/timeout check is implemented in the backend |
+| Modify auth (OTP, Google OAuth, password reset) | `backend/src/routes/` (auth routes) + `frontend/` auth pages |
+| Change the DB schema | `prisma/schema.prisma` + run a new migration |
 
-> Fill in exact subfolder paths once you confirm them — e.g. `backend/src/services/bidService.ts`, `backend/src/db/migrations/`, etc.
+> Fill in exact paths once confirmed.
 
-### Running tests (if/once added)
+### Design notes worth knowing before you touch the bidding logic
+
+- "First bid wins the round" is resolved by **server receipt order**, not client timestamps — this is intentional and should not be changed to trust client-side time.
+- The room must hard-lock (reject all further bids) the instant the first valid bid for a round is accepted, *before* the 2-second freeze broadcast goes out — otherwise two near-simultaneous bids can both be accepted before clients receive the freeze signal.
+- Room state needs to be readable on reconnect — if you move state from in-memory to a persistent store, make sure rejoin logic reads from the same source of truth.
+
+### Running migrations / Prisma Studio
 
 ```bash
-cd backend && npm run test
-cd frontend && npm run test
+npx prisma studio       # inspect DB visually
+npx prisma migrate dev  # apply schema changes
 ```
 
 ### Contributing
 
 1. Fork the repo
 2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes with clear messages
-4. Push and open a Pull Request
+3. Commit with clear messages
+4. Open a Pull Request
 
 ---
 
+## Known Limitations / Roadmap
 
+- [ ] Load-test the freeze mechanic under truly simultaneous concurrent bids (automated script, not manual clicking)
+- [ ] Document whether room state is in-memory per server instance or persisted (affects horizontal scaling)
+- [ ] Add automated tests for the admin-disconnect auto-end timer
+- [ ] Add rate limiting on bid/auth endpoints
+- [ ] Dockerize for easier local setup
+
+---
 
 
 
