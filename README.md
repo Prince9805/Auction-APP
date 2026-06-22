@@ -25,7 +25,7 @@ Key things this app actually solves:
 | Backend       | Node.js + TypeScript |
 | Database      | PostgreSQL |
 | Auth          | NextAuth.js |
-| Deployment    | Vercel (frontend), `<ADD_BACKEND_HOST_HERE>` (backend) |
+| Deployment    | Vercel (frontend), Render (backend) |
 
 ---
 
