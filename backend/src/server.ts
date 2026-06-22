@@ -3,7 +3,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import prisma from './db'; 
-import { transporter } from './email';
+import { sendOtpEmail } from './email';
 import { generateOTP } from './utils';
 import crypto from 'crypto'; // 🔥 Native Node.js library for FAANG-level security
 
@@ -164,12 +164,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
       create: { email, otpCode: otp, otpExpiry: expiry },
     });
 
-    await transporter.sendMail({
-      from: `"Auction Engine" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Your Auction Security Code",
-      html: `<h2>Verification Required</h2><p>Your 6-digit security code is:</p><h1>${otp}</h1>`
-    });
+    await sendOtpEmail(email, otp);
 
     res.status(200).json({ message: "OTP sent successfully!" });
   } catch (error) { console.error("🚨 FATAL OTP CRASH:", error); // <--- ADD THIS LINE!
