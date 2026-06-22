@@ -185,11 +185,7 @@ cd frontend && npm run test
 
 ---
 
-## License
 
-`<ADD_LICENSE_HERE — e.g. MIT>`
-
----
 
 ## Author
 
