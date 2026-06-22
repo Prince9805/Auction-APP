@@ -176,14 +176,7 @@ cd frontend && npm run test
 
 ---
 
-## Roadmap / Known Limitations
 
-- [ ] Add automated tests for concurrent bid scenarios
-- [ ] Add WebSocket-based live updates (if not already in place) instead of polling
-- [ ] Add rate limiting on bid submission endpoint
-- [ ] Containerize with Docker for easier local setup
-
----
 
 
 
